@@ -23,7 +23,7 @@ public class Main {
 
   public static void setUpWords(HashMap<String, Double> trainWords) {
     File dir = new File("/Users/Mitchell/Downloads/train");
-    Scanner s;
+    Scanner s; //this is a test
     try {
       for (File file : dir.listFiles()) {
         s = new Scanner(file);
