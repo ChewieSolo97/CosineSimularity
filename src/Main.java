@@ -18,7 +18,12 @@ public class Main {
     setUpVectors(trainVectors, trainWords, trainPath);
     setUpVectors(testVectors, trainWords, testPath);
     cosineSimilarity(testVectors, trainVectors, similarities);
-
+    //ArrayList<Integer> topIndexes = findLargestSimilarities(5, similarities.get(0));
+//    for (Integer num : topIndexes) {
+//      System.out.println("the top sim. are: " + num);
+//    }
+    classifyEmails(testVectors, trainVectors, similarities, 1); // using 5 for now, change to user input
+    checkAccuracy(testVectors);
   }
 
   public static void setUpWords(HashMap<String, Double> trainWords) {
@@ -80,8 +85,9 @@ public class Main {
     double denominatorA = 0;
     double denominatorB = 0;
     // iterate over every training email to compare against one test email, don't like the N^3, will try to fix
-    for (int i = 0; i < testVectors.size(); i++) {
-      for (int j = 0; j < trainVectors.size(); j++) {
+    for (int i = 0; i < trainVectors.size(); i++) {
+      similarities.add(new HashMap<>());
+      for (int j = 0; j < testVectors.size(); j++) {
         // need to clear out these each time
         numerator = 0;
         denominatorA = 0;
@@ -89,13 +95,18 @@ public class Main {
         //cosineSimilarity = 0;
         // you iterate over every word in the training set, which should be the keys for each email
         for (String word : trainVectors.get(0).getEmailWords().keySet()) {
-          numerator += trainVectors.get(j).getEmailWords().get(word) * testVectors.get(i).getEmailWords().get(word);
-          denominatorA += trainVectors.get(j).getEmailWords().get(word) * trainVectors.get(j).getEmailWords().get(word);
-          denominatorB += testVectors.get(i).getEmailWords().get(word) * testVectors.get(i).getEmailWords().get(word);
+          numerator += trainVectors.get(i).getEmailWords().get(word) * testVectors.get(j).getEmailWords().get(word);
+          denominatorA += trainVectors.get(i).getEmailWords().get(word) * trainVectors.get(i).getEmailWords().get(word);
+          denominatorB += testVectors.get(j).getEmailWords().get(word) * testVectors.get(j).getEmailWords().get(word);
         }
         cosineSimilarity = numerator / ((Math.sqrt(denominatorA)) * ((Math.sqrt(denominatorB))));
         // no idea why, but it complained about the double
-        similarities.add(new HashMap<>(j, (float) cosineSimilarity));
+
+
+        //System.out.printf("%f, %f, %f \n", numerator, denominatorA, denominatorB);
+
+        similarities.get(i).put(j, cosineSimilarity);
+        //System.out.println(similarities.get(i).get(j));
       }
     }
   }
@@ -103,8 +114,59 @@ public class Main {
   public static void classifyEmails(ArrayList<MailVector> testVectors, ArrayList<MailVector> trainVectors,
     ArrayList<HashMap<Integer, Double>> similarities, int k) {
 
-    for (MailVector email : testVectors) {
-
+    ArrayList<Integer> emailSim = new ArrayList<>();
+    int i = 0;
+    for (HashMap<Integer, Double> email : similarities) {
+      emailSim.addAll(findLargestSimilarities(k, email));
+      testVectors.get(i).setSpam(pickTestLabel(emailSim, trainVectors));
+      emailSim.clear();
+      i++;
     }
+
+  }
+
+  public static ArrayList<Integer> findLargestSimilarities(int k, HashMap<Integer, Double> similarities) {
+
+    ArrayList<Integer> topIndexes = new ArrayList<>();
+    double top = 0;
+    int topIndex = -1;
+
+    for (int i = 0; i < k; i++) {
+      for (int j = 0; j < similarities.size(); j++) {
+        if (similarities.get(j) > top && !topIndexes.contains(j)) {
+          top = similarities.get(j);
+          topIndex = j;
+        }
+      }
+      top = 0;
+      topIndexes.add(topIndex);
+    }
+
+    return topIndexes;
+  }
+
+  public static boolean pickTestLabel(ArrayList<Integer> emailSim, ArrayList<MailVector> trainVectors) {
+
+    int spam = 0;
+    int notSpam = 0;
+    for (Integer index : emailSim) {
+      if (trainVectors.get(index).getLabel()) {
+        spam++;
+      } else {
+        notSpam++;
+      }
+    }
+    return (spam > notSpam ? true : false);
+  }
+
+  public static void checkAccuracy(ArrayList<MailVector> testVectors) {
+
+    double correctClassification = 0;
+    for (MailVector email : testVectors) {
+      if (email.getLabel() == email.getIsSpam()) {
+        correctClassification++;
+      }
+    }
+    System.out.println("The accuracy is : " + correctClassification / testVectors.size());
   }
 }
